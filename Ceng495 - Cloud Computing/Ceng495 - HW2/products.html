@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <script src="https://s3.amazonaws.com/stitch-sdks/js/bundles/4.3.1/stitch.js"></script>        
+        <title>Ceng495</title>
+        <script>
+            const client = stitch.Stitch.initializeDefaultAppClient('ceng495-hw2-kfxos');
+              
+            const db = client.getServiceClient(stitch.RemoteMongoClient.factory, 'mongodb-atlas').db('ebay_clone');
+        
+            var url = new URL(window.location.href);
+            var user_name = url.searchParams.get("username");
+
+            var myCursor = db.collection("users").find().toArray();
+
+                
+        </script>
+        <style>
+            * {
+              box-sizing: border-box;
+            }
+            
+            .column {
+              float: left;
+              width: 15%;
+              padding: 40px;
+            }
+
+            .btn {
+                background-color: #4CAF50; /* Green */
+                border: none;
+                color: white;
+                padding: 15px 32px;
+                text-align: center;
+                text-decoration: none;
+                display: inline-block;
+                font-size: 16px;
+            }
+        </style>
+        
+    </head>
+
+    <body>
+        <h2>Products on Sale</h2>
+        <input type=submit class="btn" value="BUY" onclick="buy()">
+        <script>
+        myCursor.then(function(result) {
+
+            var row = document.createElement("div")
+            row.className = "row";
+            
+            var k = 0;
+            for (var i = 0; i < result.length; i++) {
+                for(var j = 0; j < result[i].store.length; j++){
+                    if((result[i].store[j].quantity > 0) && (user_name.localeCompare(result[i].username))){
+                        var column = document.createElement("div");
+                        column.className = "column";
+                        column.style.backgroundColor = "#bbb";
+                        var image = document.createElement("img");
+                        image.src = result[i].store[j].photo;
+                        image.width = "200";
+                        image.height = "200";
+                        column.appendChild(image);
+                        for (var key of ['productname', 'price', 'quantity']) {
+                            var p = document.createElement("p");
+                            p.innerHTML = key.charAt(0).toUpperCase() + key.slice(1) + ": " + result[i].store[j][key];
+                            column.appendChild(p);
+                        }
+                        var p = document.createElement("p");
+                            p.innerHTML = "Seller Name: " + result[i]["username"];
+                            column.appendChild(p);
+
+
+                        var p = document.createElement("p");
+                        if(result[i].rating.length == 0){
+                            p.innerHTML = "Seller Rating: " + "Not rated";
+                        }
+                        else{
+                            var total_rate = 0;
+                            for(var m=0; m<result[i].rating.length; m++){
+                                total_rate += result[i].rating[m];
+                            }
+                            var average_rate = total_rate/result[i].rating.length;
+                            p.innerHTML = "Seller Rating: " + average_rate.toFixed(2);
+                        }
+                        column.appendChild(p);
+
+                        var x = document.createElement("INPUT");
+                        x.id = k;
+                        k++;
+                        x.setAttribute("type", "number");
+                        x.setAttribute("value", 0);
+                        x.setAttribute("min", 0);
+                        x.setAttribute("max", result[i].store[j].quantity);
+                        x.addEventListener("input", restrictFunction);
+                        column.appendChild(x);
+                        row.appendChild(column);
+                    }
+                    document.getElementsByClassName("products")[0].appendChild(row);
+                }
+            }
+        });
+        
+        </script>
+
+        <div class="products"> </div>
+
+
+    </body>
+
+</html>
+
+<script>
+    function buy(){
+        var k = 0;
+        var total_cost = 0;
+        myCursor.then(function(result) {
+            for (var i = 0; i < result.length; i++) {
+                for(var j = 0; j < result[i].store.length; j++){
+                    if((result[i].store[j].quantity > 0) && (user_name.localeCompare(result[i].username))){
+                        total_cost += document.getElementById(k).value*result[i].store[j].price;
+                        k++;
+                    }
+                }
+            }
+
+            var user = db.collection("users").findOne({username:user_name});
+            user.then(function(result2){
+                var wallet = result2.wallet;
+                if(wallet < total_cost){
+                    alert("Not enough money!\nYour Wallet: " + wallet + "\nTotal cost: " + total_cost);
+                }
+                else{
+
+                    db.collection("users").updateOne({username: user_name}, {$inc:{wallet: total_cost*(-1)}});
+
+                    k = 0;
+                    for (var i = 0; i < result.length; i++) {
+                        for(var j = 0; j < result[i].store.length; j++){
+                            if((result[i].store[j].quantity > 0) && (user_name.localeCompare(result[i].username))){
+                                console.log(document.getElementById(k).value );
+                                if(document.getElementById(k).value > 0){
+                                    var buy_product = result[i].store[j];
+                                    var buy_product_quantity = result[i].store[j].quantity - document.getElementById(k).value;
+
+                                    db.collection("users").updateOne({username: result[i].username}, {$inc:{wallet: document.getElementById(k).value*buy_product.price}});
+                                    db.collection("users").updateOne({username: user_name}, {$push: {orderhistory:{productname: buy_product.productname, photo:buy_product.photo, price:buy_product.price, quantity:document.getElementById(k).value, sellers_name:result[i].username, given_rating: 0}}} );
+                                    
+                                    db.collection("users").updateOne({username: result[i].username}, {$push: {store:{productname:buy_product.productname, photo:buy_product.photo, price:buy_product.price, quantity:buy_product_quantity}}});
+                                    db.collection("users").updateOne({username: result[i].username}, {$pull: {store:{productname: buy_product.productname, quantity:buy_product.quantity}}});
+                                    
+
+                                }
+                                k++;
+                            }
+                        }
+                    }
+                    alert("Purchasing is completed. You can see and rate your order from order history page. To see changes please refresh the page.");
+                }
+            });
+
+            
+        });
+
+
+    }
+    function restrictFunction(){
+        if (parseInt(this.value,10) > parseInt(this.max,10)){
+            this.value = this.max;
+        }
+    }
+    
+</script>

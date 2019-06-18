@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <div id = "main">
+            <script src="https://s3.amazonaws.com/stitch-sdks/js/bundles/4.3.1/stitch.js"></script>        
+            <title>Ceng495</title>
+            <script>
+                const client = stitch.Stitch.initializeDefaultAppClient('ceng495-hw2-kfxos');
+        
+                const db = client.getServiceClient(stitch.RemoteMongoClient.factory, 'mongodb-atlas').db('ebay_clone');
+
+                client.auth.loginWithCredential(new stitch.AnonymousCredential()).then(docs => {
+                    console.log("Found docs", docs)
+                    console.log("[MongoDB Stitch] Connected to Stitch")
+                }).catch(err => {
+                    console.error(err)
+                });
+            </script>
+        </head>
+        <body>
+                <Label for="login">Login as a User</Label>
+                <br>
+                <input type="text" id="login" required>
+                <input type="submit" value="Login" onclick="loginUser()">
+
+            <br>
+
+                <Label for="new_user">Add User</Label>
+                <br>
+                <input type="text" id="new_user" required>
+                <input type="submit" value="Add User" onclick="addUser()">
+
+            <br>
+
+                <Label for="del_user">Delete User</Label>
+                <br>
+                <input type="text" id="del_user" required>
+                <input type="submit" value="Delete User" onclick="delUser()">
+
+            <script>
+                function addUser() {
+                    const newUser = document.getElementById("new_user");
+                    if(newUser.value === ""){
+                        alert("Username field can not be empty.");
+                    }
+                    else{
+                        const user = db.collection("users").findOne({username: newUser.value});
+
+                        user.then(function(result) {
+                            if(result != null)
+                                alert("User already exist!");
+                            else{
+                                //client.auth.loginWithCredential(new stitch.AnonymousCredential()).then(user =>
+                                db.collection("users")
+                                .insertOne({ username: newUser.value, wallet:0, rating:[], store:[], orderhistory:[]}).then(()=>alert("User added succesfully."));
+                                newUser.value = "";                          
+                            }
+                        });
+
+                    }
+                };
+                function delUser() {
+                    const newUser = document.getElementById("del_user");
+                    if(newUser.value === ""){
+                        alert("Username field can not be empty.");
+                    }
+                    else{
+                        const user = db.collection("users").findOne({username: newUser.value});
+
+                        user.then(function(result) {
+                            if(result == null)
+                                alert("User not found!");
+                            else{
+                                //client.auth.loginWithCredential(new stitch.AnonymousCredential()).then(user =>
+                                db.collection("users")
+                                .deleteOne({ username: newUser.value }).then(()=>alert("User deleted succesfully."));
+                                newUser.value = "";                            }
+                        });
+
+                    }
+                };
+                function loginUser(){
+                    var login_user = document.getElementById("login");
+                    const user = db.collection("users").findOne({username: login_user.value});
+                    user.then(function(result) {
+                        if(result == null)
+                            alert("User not found!");
+                        else{
+                            location.href = "./user.html?username=" + login_user.value;
+                        }
+                    });
+                }
+            </script>
+        </div>
+        <br><hr><br>
+
+
+    </body>
+
+</html>
+
+

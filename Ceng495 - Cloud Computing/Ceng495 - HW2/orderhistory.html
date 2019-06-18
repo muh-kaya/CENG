@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <script src="https://s3.amazonaws.com/stitch-sdks/js/bundles/4.3.1/stitch.js"></script>        
+        <title>Ceng495</title>
+        <script>
+            const client = stitch.Stitch.initializeDefaultAppClient('ceng495-hw2-kfxos');
+      
+            const db = client.getServiceClient(stitch.RemoteMongoClient.factory, 'mongodb-atlas').db('ebay_clone');
+
+            var url = new URL(window.location.href);
+            var user_name = url.searchParams.get("username");
+
+            const user = db.collection("users").findOne({username: user_name});
+
+        </script>
+        <style>
+            * {
+              box-sizing: border-box;
+            }
+            
+            .column {
+              float: left;
+              width: 15%;
+              padding: 40px;
+            }
+        </style>
+
+    </head>
+
+    <body>
+             <script>
+                user.then(function(result) {
+                    var k = 0;
+
+                    var row = document.createElement("div")
+                    row.className = "row";
+                    var head = document.createElement("h2");
+                    head.textContent = "Order History";
+                    row.appendChild(head);
+                    for (var i = 0; i < result.orderhistory.length; i++) {
+                        var column = document.createElement("div");
+                        column.className = "column";
+                        column.style.backgroundColor = "#bbb";
+                        var image = document.createElement("img");
+                        image.src = result.orderhistory[i].photo;
+                        image.width = "200";
+                        image.height = "200";
+                        column.appendChild(image);
+                        for (var key of ['productname', 'price', 'quantity', 'sellers_name']) {
+                            var p = document.createElement("p");
+                            p.innerHTML = key.charAt(0).toUpperCase() + key.slice(1) + ": " + result.orderhistory[i][key];
+                            column.appendChild(p);
+                        }
+                        var order = result.orderhistory[i];
+                        if(result.orderhistory[i]["given_rating"] == 0){
+                            var items = ['1', '2', '3', '4', '5'];
+                            var values = [1, 2, 3, 4, 5];      
+                            var sel = document.createElement('select');
+                            //sel.setAttribute('name', 'item[]');
+                            for (var l = 0; l < 5; l++) {
+                                var opt = document.createElement('option');
+                                opt.text = items[l];
+                                opt.values = values[l];
+                                sel.appendChild(opt);
+                            }
+                            sel.id = k;
+                            sel.style.width = "30%";
+                            sel.style.marginLeft = "8%"
+                            column.appendChild(sel);
+
+                            var rate_button = document.createElement("input");
+                            rate_button.type = "submit";
+                            rate_button.value = "Rate";
+                            rate_button.id = k;
+                            k++;
+                            rate_button.addEventListener("click", function() { rateProduct(this.id) });
+                            rate_button.style.width = "30%";
+                            rate_button.style.marginLeft = "5%"
+                            column.append(rate_button);
+
+
+                        }
+                        else{
+                            var p = document.createElement("p");
+                            p.innerHTML = "Given Rating: " + result.orderhistory[i]["given_rating"];
+                            column.appendChild(p);
+                        }
+
+                        row.appendChild(column);
+                    }
+                    document.getElementsByClassName("orderhistory")[0].appendChild(row);
+                });
+            </script>
+
+        <div id = "order_history_part"class="orderhistory"> </div>
+
+    </body>
+</html>
+
+<script>
+    function rateProduct(id){
+        var select = document.getElementById(id);
+        var rate = select[select.selectedIndex].value;
+        console.log(rate);
+        console.log(id);
+        user.then(function(result) {
+            var order = result.orderhistory[id];
+            db.collection("users").updateOne({username: order.sellers_name}, {$push: {rating: parseInt(rate,10)}} );
+            db.collection("users").updateOne({username: user_name}, {$push: {orderhistory: {productname: order.productname, photo:order.photo, price:order.price, quantity:order.quantity, 
+                                                                                        sellers_name:order.sellers_name, given_rating:parseInt(rate,10)}}});
+            db.collection("users").updateOne({username: user_name}, {$pull: {orderhistory: {productname: order.productname, quantity:order.quantity, given_rating: order.given_rating}}});
+            setTimeout(location.reload.bind(location), 1500);
+        });
+
+    }
+</script>

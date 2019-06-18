@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <script src="https://s3.amazonaws.com/stitch-sdks/js/bundles/4.3.1/stitch.js"></script>        
+        <title>Ceng495</title>
+        <script>
+            const client = stitch.Stitch.initializeDefaultAppClient('ceng495-hw2-kfxos');
+      
+            const db = client.getServiceClient(stitch.RemoteMongoClient.factory, 'mongodb-atlas').db('ebay_clone');
+
+            var url = new URL(window.location.href);
+            var user_name = url.searchParams.get("username");
+
+            const user = db.collection("users").findOne({username: user_name});
+
+        </script>
+        <style>
+            * {
+              box-sizing: border-box;
+            }
+            
+            .column {
+              float: left;
+              width: 15%;
+              padding: 40px;
+            }
+        </style>
+
+    </head>
+    <body>
+        <script>
+            user.then(function(result) {
+                var user_info_div = document.createElement("div");
+
+                var head = document.createElement("h2");
+                head.textContent = "User";
+                user_info_div.appendChild(head);
+
+                var username_info = document.createElement("p");
+                username_info.textContent = "Username: " + result.username;
+                user_info_div.appendChild(username_info);
+
+                var wallet_info = document.createElement("p");
+                wallet_info.textContent = "Wallet: " + result.wallet;
+                user_info_div.appendChild(wallet_info);
+
+                var rating_info = document.createElement("p");
+                if(result.rating.length == 0){
+                    rating_info.textContent = "Rating: " + "Not rated";
+                }
+                else{
+                    var total_rate = 0;
+                    for(var i=0; i<result.rating.length; i++){
+                        total_rate += result.rating[i];
+                    }
+                    var average_rate = total_rate/result.rating.length;
+
+                    rating_info.textContent = "Rating: " + average_rate.toFixed(2);
+                }
+                user_info_div.appendChild(rating_info);
+
+                document.getElementsByClassName("user_info")[0].appendChild(user_info_div);
+            });
+        </script>
+
+        <div class="user_info"> </div>
+
+        <a href="#" id="redirectwithusername">Products Page</a>
+
+        <br><br>
+
+        <a href="#" id="order_history_part">Order History</a>
+
+        <script>document.getElementById('redirectwithusername').setAttribute('href','./products.html?username=' + user_name);</script>
+        <script>document.getElementById('order_history_part').setAttribute('href','./orderhistory.html?username=' + user_name);</script>
+        <script>
+                user.then(function(result) {
+                    var row = document.createElement("div")
+                    row.className = "row";
+                    var head = document.createElement("h2");
+                    head.textContent = "Store";
+                    row.appendChild(head);
+                    for (var i = 0; i < result.store.length; i++) {
+                        var column = document.createElement("div");
+                        column.className = "column";
+                        column.style.backgroundColor = "#bbb";
+                        var image = document.createElement("img");
+                        image.src = result.store[i].photo;
+                        image.width = "200";
+                        image.height = "200";
+                        column.appendChild(image);
+                        for (var key of ['productname', 'price', 'quantity']) {
+                            var p = document.createElement("p");
+                            p.innerHTML = key.charAt(0).toUpperCase() + key.slice(1) + ": " + result.store[i][key];
+                            column.appendChild(p);
+                        }
+                        row.appendChild(column);
+                    }
+                    document.getElementsByClassName("store")[0].appendChild(row);
+                });
+            </script>
+
+        <br><hr>
+
+        <h4>Deposit/Withdraw</h4>
+        <Label for="wallet_change">Quantity</Label>
+        <input type=text id="wallet_change">
+        <input type="submit" value="Deposit" onclick="deposit()">
+        <input type="submit" value="Withdraw" onclick="withdraw()">
+
+        <br><br>
+        
+        <h4>Add new product to store</h4>
+        <Label for="new_product_name">Product Name</Label>
+        <input type=text id="new_product_name">
+        <Label for="new_product_price">Price</Label>
+        <input type=text id="new_product_price">
+        <Label for="new_product_quantity">Quantity</Label>
+        <input type=text id="new_product_quantity">
+        <Label for="new_product_photo">Image URL</Label>
+        <input type=text id="new_product_photo">
+        <input type="submit" value="Add new product" onclick="addproduct()">
+
+        <br><br>
+
+        <h4>Drop product from store</h4>
+        <Label for="product_to_drop">Product Name</Label>
+        <input type=text id="product_to_drop">
+        <input type="submit" value="Drop product" onclick="dropproduct()">
+
+        <br><br><hr>
+
+        <div class="store"> </div>
+
+ 
+    </body>
+</html>
+
+<script>
+    function deposit(){
+        if(document.getElementById("wallet_change").value === ""){
+            alert("Please enter a quantity.");
+        }
+        else{
+            var deposit = parseInt(document.getElementById("wallet_change").value,10);
+            db.collection("users").updateOne({username: user_name}, {$inc:{wallet: deposit}});
+            setTimeout(location.reload.bind(location), 750);
+        }
+    }
+    function withdraw(){
+        if(document.getElementById("wallet_change").value === ""){
+            alert("Please enter a quantity.");
+        }
+        else{
+            var withdraw = parseInt(document.getElementById("wallet_change").value,10)*(-1);
+            user.then(function(result) {
+                if(withdraw*(-1) > result.wallet){
+                    alert("Not enough money");
+                }
+                else{
+                    db.collection("users").updateOne({username: user_name}, {$inc:{wallet: withdraw}});
+                    setTimeout(location.reload.bind(location), 750);
+                }
+            });
+        }
+    }
+    function addproduct(){
+        var new_product_name = document.getElementById("new_product_name").value;
+        var new_product_price = parseInt(document.getElementById("new_product_price").value,10);
+        var new_product_quantity = parseInt(document.getElementById("new_product_quantity").value,10);
+        var new_product_photo = document.getElementById("new_product_photo").value;
+        if(new_product_name === ""){
+            alert("Please enter a product name.");
+        }
+        else if(document.getElementById("new_product_price").value === ""){
+            alert("Please enter product price.");
+        }
+        else if(document.getElementById("new_product_quantity").value === ""){
+            alert("Please enter product quantity.");
+        }
+        else if(new_product_photo === ""){
+            alert("Please enter product photo.");
+        }
+        else{
+            db.collection("users").updateOne({username: user_name}, {$push: {store:{productname: new_product_name, photo:new_product_photo, price:new_product_price, quantity:new_product_quantity}}} );
+            setTimeout(location.reload.bind(location), 750);
+        }
+
+    }
+    function dropproduct(){
+        if(document.getElementById("product_to_drop").value === ""){
+            alert("Please enter a product name.");
+        }
+        else{
+            var product_to_drop = document.getElementById("product_to_drop").value;
+            db.collection("users").updateOne({username: user_name}, {$pull: {store:{productname: product_to_drop}}} );
+            setTimeout(location.reload.bind(location), 750);
+        }
+    }
+    
+
+</script>
